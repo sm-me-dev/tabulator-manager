@@ -1,0 +1,62 @@
+{
+  "name": "@tabulator-manager/core",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Transport-agnostic, non-destructive per-table URL state coordinator, Jalali calendar adapter, and Tabulator controller.",
+  "author": "Tabulator Manager Contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tabulator-manager/tabulator-manager.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/tabulator-manager/tabulator-manager/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/tabulator-manager/tabulator-manager/issues"
+  },
+  "keywords": [
+    "tabulator",
+    "datatable",
+    "url-state",
+    "pagination",
+    "jalali",
+    "persian-calendar",
+    "filter",
+    "sort",
+    "esm",
+    "iife"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@vitest/coverage-v8": "^2.1.9",
+    "jsdom": "^31.0.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}

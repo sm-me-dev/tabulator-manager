@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ESM Consumer Fixture</title>
+  <style>
+    .tabulator-table { width: 100%; border-collapse: collapse; }
+    .tabulator-table th, .tabulator-table td { border: 1px solid #ccc; padding: 6px; }
+  </style>
+  <script src="/fixtures/mock-tabulator.js"></script>
+</head>
+<body>
+  <h1>ESM Consumer Fixture</h1>
+  <div id="request-counter" data-count="0"></div>
+
+  <div id="table-users"></div>
+  <div id="table-logs"></div>
+
+  <button id="btn-users-page2">Users Page 2</button>
+  <button id="btn-logs-filter-err">Logs Filter Error</button>
+
+  <script type="module">
+    import { mountTable, UrlStateAdapter } from "/packages/core/dist/index.js";
+
+    window.networkFetchCount = 0;
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      window.networkFetchCount++;
+      document.getElementById('request-counter').setAttribute('data-count', String(window.networkFetchCount));
+      return originalFetch.apply(this, args);
+    };
+
+    // Table 1: Users
+    const usersAdapter = new UrlStateAdapter("users");
+    const usersTable = mountTable({
+      element: "#table-users",
+      Tabulator: window.Tabulator,
+      columns: [
+        { field: "id", title: "User ID" },
+        { field: "username", title: "Username" }
+      ],
+      data: [
+        { id: 101, username: "user_alpha" },
+        { id: 102, username: "user_beta" }
+      ]
+    });
+
+    // Table 2: Logs
+    const logsAdapter = new UrlStateAdapter("logs");
+    const logsTable = mountTable({
+      element: "#table-logs",
+      Tabulator: window.Tabulator,
+      columns: [
+        { field: "id", title: "Log ID" },
+        { field: "level", title: "Level" }
+      ],
+      data: [
+        { id: 501, level: "info" },
+        { id: 502, level: "warn" }
+      ]
+    });
+
+    window.usersAdapter = usersAdapter;
+    window.logsAdapter = logsAdapter;
+
+    document.getElementById("btn-users-page2").addEventListener("click", () => {
+      const cur = usersAdapter.current();
+      usersAdapter.update({ ...cur, page: 2 });
+    });
+
+    document.getElementById("btn-logs-filter-err").addEventListener("click", () => {
+      const cur = logsAdapter.current();
+      logsAdapter.update({
+        ...cur,
+        filters: [{ field: "level", operator: "=", value: "error" }]
+      });
+    });
+  </script>
+</body>
+</html>

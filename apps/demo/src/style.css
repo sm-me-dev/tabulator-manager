@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0d0e11] text-gray-200 font-sans antialiased selection:bg-indigo-500/30 selection:text-indigo-200;
+  }
+}
+
+/* Linear / Raycast Dark Table Overrides for Tabulator */
+.tabulator {
+  @apply bg-transparent border border-[#23272f] rounded-lg overflow-hidden text-sm text-gray-300;
+}
+
+.tabulator .tabulator-header {
+  @apply bg-[#14171d] border-b border-[#23272f] text-gray-400 font-medium;
+}
+
+.tabulator .tabulator-header .tabulator-col {
+  @apply bg-transparent border-r border-[#23272f]/60 py-2.5 px-3;
+}
+
+.tabulator .tabulator-header .tabulator-col.tabulator-sortable:hover {
+  @apply bg-[#1c2028] text-gray-200;
+}
+
+.tabulator .tabulator-tableholder .tabulator-table {
+  @apply bg-transparent;
+}
+
+.tabulator .tabulator-row {
+  @apply bg-[#101217] border-b border-[#1e222b] transition-colors duration-150;
+}
+
+.tabulator .tabulator-row:hover {
+  @apply bg-[#171b22] text-white;
+}
+
+.tabulator .tabulator-row.tabulator-row-even {
+  @apply bg-[#0d0f14];
+}
+
+.tabulator .tabulator-row.tabulator-row-even:hover {
+  @apply bg-[#171b22] text-white;
+}
+
+.tabulator .tabulator-cell {
+  @apply py-2.5 px-3 border-r border-[#1e222b]/40;
+}
+
+.tabulator .tabulator-footer {
+  @apply bg-[#14171d] border-t border-[#23272f] text-gray-400 p-2;
+}
+
+.tabulator .tabulator-footer .tabulator-page {
+  @apply bg-[#1b1f28] border border-[#2b303c] text-gray-300 rounded px-2.5 py-1 mx-0.5 hover:bg-indigo-600 hover:text-white transition-colors;
+}
+
+.tabulator .tabulator-footer .tabulator-page.active {
+  @apply bg-indigo-600 border-indigo-500 text-white font-medium;
+}

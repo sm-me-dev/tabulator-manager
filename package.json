@@ -1,0 +1,23 @@
+{
+  "name": "tabulator-manager-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @tabulator-manager/core build && pnpm --filter demo build",
+    "build:core": "pnpm --filter @tabulator-manager/core build",
+    "build:demo": "pnpm --filter demo build",
+    "test": "pnpm test:core && pnpm test:laravel",
+    "test:core": "pnpm --filter @tabulator-manager/core test",
+    "test:coverage": "pnpm --filter @tabulator-manager/core test:coverage",
+    "test:laravel": "cd packages/laravel && ./vendor/bin/pest",
+    "typecheck": "pnpm --filter @tabulator-manager/core typecheck",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "publish-packages": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.12",
+    "typescript": "^5.0.0"
+  }
+}

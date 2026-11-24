@@ -1,0 +1,111 @@
+[
+  {
+    "name": "Default table state when query is empty",
+    "tableId": "users",
+    "queryString": "",
+    "expectedState": {
+      "page": 1,
+      "size": 20,
+      "sort": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "Standard pagination and sizing",
+    "tableId": "users",
+    "queryString": "tm[users][page]=3&tm[users][size]=50",
+    "expectedState": {
+      "page": 3,
+      "size": 50,
+      "sort": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "Clamping invalid and out-of-range page and size",
+    "tableId": "users",
+    "queryString": "tm[users][page]=-5&tm[users][size]=999",
+    "expectedState": {
+      "page": 1,
+      "size": 100,
+      "sort": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "Allowlisted sorting and multiple sort columns",
+    "tableId": "users",
+    "queryString": "tm[users][sort][0][field]=score&tm[users][sort][0][dir]=desc&tm[users][sort][1][field]=created_at&tm[users][sort][1][dir]=asc",
+    "expectedState": {
+      "page": 1,
+      "size": 20,
+      "sort": [
+        { "field": "score", "dir": "desc" },
+        { "field": "created_at", "dir": "asc" }
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "Allowlisted operators and filtering",
+    "tableId": "users",
+    "queryString": "tm[users][filters][0][field]=title&tm[users][filters][0][operator]=contains&tm[users][filters][0][value]=admin&tm[users][filters][1][field]=score&tm[users][filters][1][operator]=>=&tm[users][filters][1][value]=80",
+    "expectedState": {
+      "page": 1,
+      "size": 20,
+      "sort": [],
+      "filters": [
+        { "field": "title", "operator": "contains", "value": "admin" },
+        { "field": "score", "operator": ">=", "value": "80" }
+      ]
+    }
+  },
+  {
+    "name": "Jalali date range filter with range separator",
+    "tableId": "orders",
+    "queryString": "tm[orders][filters][0][field]=order_date&tm[orders][filters][0][operator]==&tm[orders][filters][0][value]=1403/08/15%20%D8%AA%D8%A7%201403/08/30",
+    "expectedState": {
+      "page": 1,
+      "size": 20,
+      "sort": [],
+      "filters": [
+        { "field": "order_date", "operator": "=", "value": "1403/08/15 تا 1403/08/30" }
+      ]
+    }
+  },
+  {
+    "name": "Multi-table query parameter isolation (users table)",
+    "tableId": "users",
+    "queryString": "tm[users][page]=2&tm[users][size]=25&tm[orders][page]=5&tm[orders][size]=10&tm[orders][sort][0][field]=total&tm[orders][sort][0][dir]=asc",
+    "expectedState": {
+      "page": 2,
+      "size": 25,
+      "sort": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "Multi-table query parameter isolation (orders table)",
+    "tableId": "orders",
+    "queryString": "tm[users][page]=2&tm[users][size]=25&tm[orders][page]=5&tm[orders][size]=10&tm[orders][sort][0][field]=total&tm[orders][sort][0][dir]=asc",
+    "expectedState": {
+      "page": 5,
+      "size": 10,
+      "sort": [
+        { "field": "total", "dir": "asc" }
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "Preserving non-tabulator external parameters and anchor hashes",
+    "tableId": "users",
+    "queryString": "view=grid&theme=dark&tm[users][page]=4&tm[users][size]=15#results",
+    "expectedState": {
+      "page": 4,
+      "size": 15,
+      "sort": [],
+      "filters": []
+    }
+  }
+]

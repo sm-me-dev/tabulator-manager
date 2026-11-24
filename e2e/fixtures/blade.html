@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Blade SSR Consumer Fixture</title>
+  <style>
+    .tabulator-table { width: 100%; border-collapse: collapse; }
+    .tabulator-table th, .tabulator-table td { border: 1px solid #ccc; padding: 6px; }
+  </style>
+  <script src="/fixtures/mock-tabulator.js"></script>
+  <script src="/packages/core/dist/index.global.js"></script>
+</head>
+<body>
+  <h1>Blade SSR Fixture</h1>
+  <div id="request-counter" data-count="0"></div>
+
+  <!-- Simulated Blade View Container rendered with BladePresenter output -->
+  <div id="table-container"
+       data-table-id="articles"
+       data-table-payload='{"data":[{"id":1,"title":"First Article","status":"published"},{"id":2,"title":"Second Article","status":"draft"}],"meta":{"current_page":1,"per_page":2,"total":5,"last_page":3}}'>
+    <div id="table-articles"></div>
+  </div>
+
+  <div id="pagination-controls">
+    <button id="btn-blade-next">Next Page</button>
+  </div>
+
+  <script>
+    window.networkFetchCount = 0;
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      window.networkFetchCount++;
+      document.getElementById('request-counter').setAttribute('data-count', String(window.networkFetchCount));
+      return originalFetch.apply(this, args);
+    };
+
+    const container = document.getElementById("table-container");
+    const tableId = container.dataset.tableId;
+    const payload = JSON.parse(container.dataset.tablePayload);
+
+    // Initial SSR data is already supplied by Blade - ZERO initial network requests!
+    const adapter = new window.TabulatorManager.UrlStateAdapter(tableId);
+
+    const table = window.TabulatorManager.mountTable({
+      element: "#table-articles",
+      Tabulator: window.Tabulator,
+      columns: [
+        { field: "id", title: "Article ID" },
+        { field: "title", title: "Title" },
+        { field: "status", title: "Status" }
+      ],
+      data: payload.data
+    });
+
+    window.bladeTable = table;
+    window.bladeAdapter = adapter;
+
+    // Subsequent page change loads from server (server owns pagination)
+    document.getElementById("btn-blade-next").addEventListener("click", async () => {
+      const cur = adapter.current();
+      const nextPage = cur.page + 1;
+      adapter.update({ ...cur, page: nextPage });
+
+      // Fetch server-supplied page
+      const resp = await fetch(`/api/articles?tm[articles][page]=${nextPage}`);
+      const json = await resp.json();
+      table.setData(json.data);
+    });
+  </script>
+</body>
+</html>

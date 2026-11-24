@@ -1,0 +1,114 @@
+name: Monorepo Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-quality:
+    name: Core Package Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: |
+          pnpm approve-builds --all || true
+          pnpm install
+
+      - name: TypeScript Check
+        run: pnpm --filter @tabulator-manager/core typecheck
+
+      - name: Vitest Coverage Suite
+        run: pnpm --filter @tabulator-manager/core test:coverage
+
+      - name: Build Core
+        run: pnpm --filter @tabulator-manager/core build
+
+  laravel-quality:
+    name: Laravel Package Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: mbstring, pdo, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Validate Composer
+        run: |
+          cd packages/laravel
+          composer validate --strict
+
+      - name: Install dependencies
+        run: |
+          cd packages/laravel
+          composer install --prefer-dist --no-interaction
+
+      - name: Run Pest Tests
+        run: |
+          cd packages/laravel
+          ./vendor/bin/pest --colors=always
+
+  apps-verification:
+    name: Apps Build & Docker Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: |
+          pnpm approve-builds --all || true
+          pnpm install
+
+      - name: Build Core & Demo Application
+        run: |
+          pnpm --filter @tabulator-manager/core build
+          pnpm --filter demo build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Laravel Demo Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/laravel-demo/Dockerfile
+          push: false
+          tags: tabulator-manager-api:ci

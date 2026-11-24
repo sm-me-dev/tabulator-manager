@@ -1,0 +1,69 @@
+{
+  "name": "tabulator-manager/laravel",
+  "type": "library",
+  "license": "MIT",
+  "description": "Production-grade, database-agnostic Eloquent query pipeline, DTO request parsing, allowlisted sort/filter permissions, and presenters for Tabulator tables in Laravel 11 and 12.",
+  "keywords": [
+    "laravel",
+    "tabulator",
+    "datatable",
+    "eloquent",
+    "pipeline",
+    "query-builder",
+    "blade",
+    "inertia",
+    "jalali",
+    "url-state"
+  ],
+  "homepage": "https://github.com/tabulator-manager/tabulator-manager/tree/main/packages/laravel",
+  "support": {
+    "issues": "https://github.com/tabulator-manager/tabulator-manager/issues",
+    "source": "https://github.com/tabulator-manager/tabulator-manager"
+  },
+  "authors": [
+    {
+      "name": "Tabulator Manager Contributors",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": "^8.2|^8.3|^8.4",
+    "illuminate/support": "^11.0|^12.0",
+    "illuminate/database": "^11.0|^12.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^8.0|^9.0|^10.0",
+    "pestphp/pest": "^2.0|^3.0",
+    "inertiajs/inertia-laravel": "^1.0|^2.0|^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "TabulatorManager\\Laravel\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "TabulatorManager\\Laravel\\Tests\\": "tests/",
+      "Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "TabulatorManager\\Laravel\\TabulatorManagerServiceProvider"
+      ]
+    }
+  },
+  "config": {
+    "policy": {
+      "advisories": {
+        "block": false
+      }
+    },
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

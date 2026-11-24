@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plain Script Tag Consumer Fixture</title>
+  <style>
+    .tabulator-table { width: 100%; border-collapse: collapse; }
+    .tabulator-table th, .tabulator-table td { border: 1px solid #ccc; padding: 6px; }
+  </style>
+  <!-- Mock Tabulator -->
+  <script src="/fixtures/mock-tabulator.js"></script>
+  <!-- IIFE Bundle -->
+  <script src="/packages/core/dist/index.global.js"></script>
+</head>
+<body>
+  <h1>Plain Script Tag Fixture</h1>
+  <div id="request-counter" data-count="0"></div>
+
+  <div id="table-users"></div>
+  <button id="btn-next-page">Next Page</button>
+  <button id="btn-sort-name">Sort Name Desc</button>
+  <button id="btn-filter-active">Filter Active</button>
+
+  <script>
+    window.networkFetchCount = 0;
+    // Intercept fetch to track requests
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      window.networkFetchCount++;
+      document.getElementById('request-counter').setAttribute('data-count', String(window.networkFetchCount));
+      return originalFetch.apply(this, args);
+    };
+
+    // SSR Initial data supplied by server on page load
+    const ssrData = [
+      { id: 1, name: "Alice", role: "Admin", active: 1 },
+      { id: 2, name: "Bob", role: "Member", active: 1 }
+    ];
+    const columns = [
+      { field: "id", title: "ID" },
+      { field: "name", title: "Name" },
+      { field: "role", title: "Role" }
+    ];
+
+    // Read initial state
+    const tableId = "users";
+    const adapter = new window.TabulatorManager.UrlStateAdapter(tableId);
+
+    // Mount using modern core API on window.TabulatorManager
+    const tableInstance = window.TabulatorManager.mountTable({
+      element: "#table-users",
+      Tabulator: window.Tabulator,
+      columns: columns,
+      data: ssrData
+    });
+
+    window.tableInstance = tableInstance;
+    window.adapter = adapter;
+
+    // Interactive buttons
+    document.getElementById("btn-next-page").addEventListener("click", () => {
+      const cur = adapter.current();
+      adapter.update({ ...cur, page: cur.page + 1 });
+    });
+
+    document.getElementById("btn-sort-name").addEventListener("click", () => {
+      const cur = adapter.current();
+      adapter.update({ ...cur, sort: [{ field: "name", dir: "desc" }] });
+    });
+
+    document.getElementById("btn-filter-active").addEventListener("click", () => {
+      const cur = adapter.current();
+      adapter.update({
+        ...cur,
+        filters: [{ field: "active", operator: "=", value: "1" }]
+      });
+    });
+  </script>
+</body>
+</html>

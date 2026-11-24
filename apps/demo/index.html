@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tabulator Manager | Modern Monorepo Live Demo</title>
+    <link rel="stylesheet" href="./src/style.css" />
+    <!-- Tabulator CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.0/dist/css/tabulator_midnight.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-[#0b0c0e] text-gray-200 min-h-screen flex flex-col font-sans">
+    <!-- Header -->
+    <header class="border-b border-[#1f232b] bg-[#12141a]/80 backdrop-blur-md sticky top-0 z-50 px-6 py-3.5">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-mono font-bold text-white shadow-lg shadow-indigo-500/20">
+            TM
+          </div>
+          <div>
+            <h1 class="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              tabulator-manager
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#1e2330] text-indigo-400 border border-indigo-500/30">v1.0.0</span>
+            </h1>
+            <p class="text-xs text-gray-400">Decoupled TypeScript Core + Laravel Query Pipeline Monorepo</p>
+          </div>
+        </div>
+
+        <!-- Transport & Health Status Badge -->
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Status Badge -->
+          <div id="transport-badge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#1a1d24] border border-[#2b303d] transition-all duration-300">
+            <span id="badge-dot" class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+            <span id="badge-text" class="text-gray-300">🟡 Server waking (serving local mock)</span>
+          </div>
+
+          <!-- Switcher Action -->
+          <div class="inline-flex rounded-lg bg-[#16181f] p-0.5 border border-[#242833]">
+            <button id="btn-source-mock" class="px-2.5 py-1 text-xs font-medium rounded-md transition-colors bg-indigo-600 text-white shadow-sm">
+              MSW Mock
+            </button>
+            <button id="btn-source-live" class="px-2.5 py-1 text-xs font-medium rounded-md transition-colors text-gray-400 hover:text-gray-200">
+              Live Backend
+            </button>
+          </div>
+
+          <!-- Fast Probe Trigger -->
+          <button id="btn-reprobe" title="Check Render backend health" class="p-1.5 text-xs text-gray-400 hover:text-white bg-[#16181f] border border-[#242833] rounded-lg transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+      <!-- Scenario Navigation Tabs -->
+      <div class="border-b border-[#1f232b] flex items-center justify-between pb-3">
+        <nav class="flex space-x-2" aria-label="Tabs">
+          <button data-tab="tab-multi-table" class="tab-btn px-3.5 py-1.5 text-xs font-medium rounded-lg bg-indigo-600/10 text-indigo-400 border border-indigo-500/30 transition-colors">
+            Scenario 2: Multi-Table Isolation
+          </button>
+          <button data-tab="tab-jalali" class="tab-btn px-3.5 py-1.5 text-xs font-medium rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#161922] transition-colors">
+            Scenario 3: Jalali Calendar & Persian Digits
+          </button>
+          <button data-tab="tab-plain-script" class="tab-btn px-3.5 py-1.5 text-xs font-medium rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#161922] transition-colors">
+            Scenario 1: Legacy IIFE Global Shim
+          </button>
+        </nav>
+
+        <div class="text-xs text-gray-400 hidden sm:flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>Zero DB Assumptions (SQLite/PG/MySQL)</span>
+        </div>
+      </div>
+
+      <!-- Tab 1: Multi-Table Isolation (Scenario 2) -->
+      <section id="tab-multi-table" class="tab-pane space-y-6">
+        <div class="bg-[#12141a] border border-[#20242e] rounded-xl p-5 shadow-sm">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-sm font-semibold text-white">Scenario 2: Multi-Table URL State Isolation</h2>
+              <p class="text-xs text-gray-400">Two independent tables on one page. Users state is namespaced under <code class="text-indigo-300 font-mono">tm[users]</code> and Orders under <code class="text-indigo-300 font-mono">tm[orders]</code>. Changing one table never mutates or clobbers the other.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400">History Mode:</span>
+              <button id="toggle-history-mode" class="text-xs px-2.5 py-1 rounded bg-[#1a1e27] border border-[#2d323f] text-gray-200 hover:bg-[#222733]">
+                Mode: <span id="current-history-mode" class="text-indigo-400 font-mono">replaceState</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Table 1: Users -->
+            <div class="space-y-3 bg-[#0d0f14] p-4 rounded-xl border border-[#1b1f28]">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                  <h3 class="text-xs font-semibold text-gray-200 uppercase tracking-wider font-mono">Users Table (<code class="text-indigo-400">tm[users]</code>)</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input id="users-filter-input" type="text" placeholder="Filter by name..." class="text-xs bg-[#161820] border border-[#272b38] rounded-md px-2.5 py-1 text-gray-200 focus:outline-none focus:border-indigo-500 w-36" />
+                </div>
+              </div>
+              <div id="users-table-container"></div>
+            </div>
+
+            <!-- Table 2: Orders -->
+            <div class="space-y-3 bg-[#0d0f14] p-4 rounded-xl border border-[#1b1f28]">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  <h3 class="text-xs font-semibold text-gray-200 uppercase tracking-wider font-mono">Orders Table (<code class="text-emerald-400">tm[orders]</code>)</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input id="orders-filter-input" type="text" placeholder="Filter customer..." class="text-xs bg-[#161820] border border-[#272b38] rounded-md px-2.5 py-1 text-gray-200 focus:outline-none focus:border-emerald-500 w-36" />
+                </div>
+              </div>
+              <div id="orders-table-container"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Jalali Calendar & Persian Digits (Scenario 3) -->
+      <section id="tab-jalali" class="tab-pane hidden space-y-6">
+        <div class="bg-[#12141a] border border-[#20242e] rounded-xl p-5 shadow-sm space-y-5">
+          <div>
+            <h2 class="text-sm font-semibold text-white">Scenario 3: Jalali Calendar Date-Range Filter & Persian Digits</h2>
+            <p class="text-xs text-gray-400">Adheres strictly to the format contract (<code class="text-indigo-300 font-mono">YYYY-MM-DD</code> or <code class="text-indigo-300 font-mono">YYYY/MM/DD</code>), the range separator (<code class="text-indigo-300 font-mono"> تا </code>), and Persian/Arabic digits normalization (<code class="text-indigo-300 font-mono">۰-۹</code>).</p>
+          </div>
+
+          <div class="bg-[#0e1015] border border-[#1f232e] p-4 rounded-xl space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-300 mb-1">Date Range with Persian Digits:</label>
+                <input id="jalali-range-input" type="text" value="۱۴۰۳/۰۱/۰۱ تا ۱۴۰۳/۰۶/۳۰" class="w-full text-xs font-mono bg-[#161822] border border-[#2a2f3d] rounded-lg px-3 py-2 text-indigo-300 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-300 mb-1">Preset Quick Ranges:</label>
+                <div class="flex flex-wrap gap-1.5">
+                  <button class="jalali-preset text-[11px] px-2 py-1 rounded bg-[#1c202a] border border-[#2d3342] hover:bg-[#252b38] text-gray-300" data-range="۱۴۰۳/۰۱/۰۱ تا ۱۴۰۳/۰۳/۳۱">Q1 (Spring 1403)</button>
+                  <button class="jalali-preset text-[11px] px-2 py-1 rounded bg-[#1c202a] border border-[#2d3342] hover:bg-[#252b38] text-gray-300" data-range="۱۴۰۳/۰۴/۰۱ تا ۱۴۰۳/۰۶/۳۱">Q2 (Summer 1403)</button>
+                  <button class="jalali-preset text-[11px] px-2 py-1 rounded bg-[#1c202a] border border-[#2d3342] hover:bg-[#252b38] text-gray-300" data-range="۱۴۰۳/۰۱/۰۱ تا ۱۴۰۳/۰۸/۳۰">Year-to-Date</button>
+                </div>
+              </div>
+              <div class="flex items-end">
+                <button id="apply-jalali-filter" class="w-full text-xs py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors shadow-sm">
+                  Apply Jalali Range Filter
+                </button>
+              </div>
+            </div>
+
+            <!-- Conversion Debug Box -->
+            <div id="jalali-conversion-box" class="bg-[#14161f] border border-[#222633] p-3 rounded-lg text-xs font-mono text-gray-300 space-y-1">
+              <div><span class="text-gray-500">Raw Input:</span> <span id="debug-raw-input" class="text-indigo-400">۱۴۰۳/۰۱/۰۱ تا ۱۴۰۳/۰۶/۳۰</span></div>
+              <div><span class="text-gray-500">Normalized Digits:</span> <span id="debug-normalized" class="text-emerald-400">1403/01/01 تا 1403/06/30</span></div>
+              <div><span class="text-gray-500">Gregorian ISO Conversion:</span> <span id="debug-gregorian" class="text-cyan-400">2024-03-20 to 2024-09-21</span></div>
+            </div>
+          </div>
+
+          <div id="jalali-table-container"></div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Legacy IIFE Global Shim (Scenario 1) -->
+      <section id="tab-plain-script" class="tab-pane hidden space-y-6">
+        <div class="bg-[#12141a] border border-[#20242e] rounded-xl p-5 shadow-sm space-y-4">
+          <div>
+            <h2 class="text-sm font-semibold text-white">Scenario 1: Legacy IIFE Plain Script Tag Shim</h2>
+            <p class="text-xs text-gray-400">Demonstrates backward compatibility for legacy non-bundled Blade views calling <code class="text-indigo-300 font-mono">new window.TabulatorManager(selector, url, options)</code>.</p>
+          </div>
+
+          <div class="bg-[#0e1015] border border-[#1f232e] p-3.5 rounded-lg text-xs font-mono text-gray-300 overflow-x-auto">
+            <span class="text-emerald-400">&lt;script src="dist/index.global.js"&gt;&lt;/script&gt;</span><br />
+            <span class="text-gray-500">// Legacy invocation with @deprecated notice:</span><br />
+            const table = new window.TabulatorManager("#legacy-mount-point", "/api/users", { data: initialData, columns: [...] });
+          </div>
+
+          <div class="border border-[#1f232e] rounded-xl p-4 bg-[#0d0f14]">
+            <div id="legacy-mount-point"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scenario 4: Real-Time URL Query Inspector -->
+      <section class="bg-[#12141a] border border-[#20242e] rounded-xl p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="text-xs font-semibold text-white uppercase tracking-wider font-mono">Scenario 4: Real-time Live URL Query Inspector</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-copy-url" class="text-[11px] px-2 py-0.5 rounded bg-[#1c202a] border border-[#2d3342] text-gray-300 hover:text-white">Copy Search</button>
+            <button id="btn-reset-url" class="text-[11px] px-2 py-0.5 rounded bg-[#1c202a] border border-[#2d3342] text-rose-400 hover:text-rose-300">Reset State</button>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="bg-[#0b0c10] p-3 rounded-lg border border-[#1b1e27] font-mono text-xs text-indigo-300 break-all select-all flex items-start gap-2">
+            <span class="text-gray-500 select-none">URL:</span>
+            <span id="inspector-url">?</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+            <div class="bg-[#0b0c10] p-3 rounded-lg border border-[#1b1e27]">
+              <div class="text-[11px] text-gray-400 mb-1.5 flex items-center justify-between font-sans">
+                <span>Decoded Table State: <strong class="text-indigo-400 font-mono">tm[users]</strong></span>
+              </div>
+              <pre id="inspector-users-state" class="text-gray-300 overflow-x-auto text-[11px] max-h-40">{}</pre>
+            </div>
+
+            <div class="bg-[#0b0c10] p-3 rounded-lg border border-[#1b1e27]">
+              <div class="text-[11px] text-gray-400 mb-1.5 flex items-center justify-between font-sans">
+                <span>Decoded Table State: <strong class="text-emerald-400 font-mono">tm[orders]</strong></span>
+              </div>
+              <pre id="inspector-orders-state" class="text-gray-300 overflow-x-auto text-[11px] max-h-40">{}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[#1f232b] bg-[#0d0e12] px-6 py-4 mt-auto text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div>tabulator-manager &copy; 2026. Non-destructive URL state coordinator &amp; database-agnostic pipeline.</div>
+      <div class="flex items-center gap-4 text-gray-400 font-mono text-[11px]">
+        <span>Coverage: 98.8% Lines</span>
+        <span>•</span>
+        <span>ESM / CJS / IIFE</span>
+      </div>
+    </footer>
+
+    <!-- Main JS Application Entry -->
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
