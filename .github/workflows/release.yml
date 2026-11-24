@@ -1,26 +1,28 @@
-name: Automated Release & Semantic Versioning
+name: Release
 
 on:
   push:
-    branches:
-      - main
-
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
-  id-token: write
 
 jobs:
-  release:
-    name: Changesets Release Coordinator
+  verify:
+    name: Verify Quality Gates
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Validate Release Tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          fi
+
+      - uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -38,17 +40,37 @@ jobs:
           pnpm approve-builds --all || true
           pnpm install
 
-      - name: Build Core Package
-        run: pnpm --filter @tabulator-manager/core build
+      - name: Run Core Verification
+        run: |
+          pnpm --filter @tabulator-manager/core typecheck
+          pnpm --filter @tabulator-manager/core test:coverage
+          pnpm --filter @tabulator-manager/core build
 
-      - name: Create Version Pull Request or Publish
-        id: changesets
-        uses: changesets/action@v1
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
         with:
-          publish: pnpm publish-packages
-          version: pnpm version-packages
-          commit: "chore(release): version packages"
-          title: "chore(release): version packages"
+          php-version: 8.4
+          extensions: mbstring, pdo, pdo_sqlite, sqlite3
+
+      - name: Run Laravel Verification
+        run: |
+          cd packages/laravel
+          composer validate --strict
+          composer install --prefer-dist --no-interaction
+          ./vendor/bin/pest
+
+  create-release:
+    name: Create GitHub Release
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "${TAG}" \
+            --title "Tabulator Manager ${TAG}" \
+            --generate-notes

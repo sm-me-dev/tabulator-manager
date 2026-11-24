@@ -1,0 +1,84 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/demo/**"
+      - "packages/core/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: |
+          pnpm approve-builds --all || true
+          pnpm install
+
+      - name: Build Core & Demo Preview
+        run: |
+          pnpm --filter @tabulator-manager/core build
+          pnpm --filter demo build
+
+      - name: Deploy to gh-pages branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          TMP_DIR=$(mktemp -d)
+          cp -r apps/demo/dist/* "$TMP_DIR/"
+
+          # Checkout or create orphan gh-pages branch
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages:gh-pages
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+          fi
+
+          # Clear existing tracked files in gh-pages
+          git rm -rf . >/dev/null 2>&1 || true
+
+          # Copy generated demo dist files & disable jekyll processing
+          cp -r "$TMP_DIR"/* .
+          touch .nojekyll
+
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to deploy to gh-pages."
+          else
+            git commit -m "Deploy GitHub Pages for Tabulator Manager [skip ci]"
+            git push origin gh-pages
+          fi

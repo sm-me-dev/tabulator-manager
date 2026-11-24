@@ -1,55 +1,22 @@
 name: Publish Core to NPM
 
 on:
-  push:
-    tags:
-      - "v*"
-      - "core-v*"
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run publish (do not write to registry)"
+        required: false
+        default: "false"
 
 permissions:
   contents: read
   id-token: write # Required for npm OIDC Trusted Publishing & Provenance
 
 jobs:
-  test:
-    name: Test Core across Node LTS
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
-      - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: |
-          pnpm approve-builds --all || true
-          pnpm install
-
-      - name: Run Typecheck
-        run: pnpm --filter @tabulator-manager/core typecheck
-
-      - name: Run Vitest with Coverage
-        run: pnpm --filter @tabulator-manager/core test:coverage
-
-      - name: Verify Bundle Build
-        run: pnpm --filter @tabulator-manager/core build
-
   publish:
     name: Publish @tabulator-manager/core to NPM
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -72,14 +39,21 @@ jobs:
           pnpm approve-builds --all || true
           pnpm install
 
-      - name: Build Core Package
-        run: pnpm --filter @tabulator-manager/core build
+      - name: Run verification gate
+        run: |
+          pnpm --filter @tabulator-manager/core typecheck
+          pnpm --filter @tabulator-manager/core test:coverage
+          pnpm --filter @tabulator-manager/core build
 
-      - name: Publish to NPM with Provenance
+      - name: Publish to NPM
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd packages/core
-          # npm Trusted Publishing uses GitHub OIDC (id-token: write)
-          # --provenance binds the package artifact cryptographically to this workflow run
-          pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # Fallback if manual token is configured
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "Running pnpm publish dry run..."
+            pnpm publish --dry-run --access public --no-git-checks
+          else
+            echo "Publishing with provenance to npm registry..."
+            pnpm publish --provenance --access public --no-git-checks
+          fi

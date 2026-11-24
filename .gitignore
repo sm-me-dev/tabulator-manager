@@ -45,10 +45,6 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Agent & Graphify temporary caches
+# Agent & Graphify
 .gemini/
-graphify-out/cache/
-graphify-out/202*
-graphify-out/.graphify_*
-graphify-out/.cloud-cta-shown
-graphify-out/cost.json
+graphify-out/
