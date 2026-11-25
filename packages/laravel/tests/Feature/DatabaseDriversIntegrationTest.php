@@ -1,20 +1,76 @@
 <?php
 
+use Illuminate\Database\Connection;
+use Illuminate\Database\MySqlConnection;
+use Illuminate\Database\PostgresConnection;
 use Illuminate\Support\Facades\DB;
-use TabulatorManager\Laravel\RequestParser;
 use TabulatorManager\Laravel\TableDefinition;
 use TabulatorManager\Laravel\TableQueryPipeline;
 use TabulatorManager\Laravel\TableStateDTO;
 
 uses(\Tests\TestCase::class);
 
+/**
+ * Real-database coverage for PostgreSQL/MySQL.
+ *
+ * In CI (`TM_REQUIRE_DB=1`) an unreachable server is a hard failure so the
+ * matrix can never silently pass on the grammar-only fallback. Locally, when a
+ * server is not running, we fall back to verifying SQL grammar compilation.
+ */
+function tmConnectionReachable(string $name): bool
+{
+    try {
+        DB::connection($name)->getPdo();
+
+        return true;
+    } catch (\Throwable $e) {
+        if (getenv('TM_REQUIRE_DB') === '1') {
+            throw $e;
+        }
+
+        return false;
+    }
+}
+
+function tmItemsDefinition(callable $query): TableDefinition
+{
+    return new TableDefinition(
+        $query,
+        [
+            'title' => ['column' => 'title', 'sortable' => true, 'operators' => ['contains', '=']],
+            'score' => ['column' => 'score', 'sortable' => true, 'operators' => ['>=', '<=']],
+        ],
+        'id'
+    );
+}
+
+function tmScoreState(string $dir): TableStateDTO
+{
+    return new TableStateDTO(
+        page: 1,
+        size: 10,
+        sort: [['field' => 'score', 'dir' => $dir]],
+        filters: [['field' => 'score', 'operator' => '>=', 'value' => '50']]
+    );
+}
+
+function tmCompileFallbackSql(Connection $connection, string $table, string $dir): string
+{
+    $builder = $connection->table($table);
+    $builder->where('title', 'like', '%PG%');
+    $builder->where('score', '>=', '50');
+    $builder->orderBy('score', $dir);
+
+    return $builder->toSql();
+}
+
 it('runs query pipeline successfully on SQLite driver', function () {
-    DB::connection('testbench')->statement("CREATE TABLE items (
+    DB::connection('testbench')->statement('CREATE TABLE items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title VARCHAR(255),
         score INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
+    )');
 
     DB::connection('testbench')->table('items')->insert([
         ['title' => 'Alpha item', 'score' => 50],
@@ -22,24 +78,8 @@ it('runs query pipeline successfully on SQLite driver', function () {
         ['title' => 'Gamma item', 'score' => 30],
     ]);
 
-    $definition = new TableDefinition(
-        fn () => DB::connection('testbench')->table('items'),
-        [
-            'title' => ['column' => 'title', 'sortable' => true, 'operators' => ['contains', '=']],
-            'score' => ['column' => 'score', 'sortable' => true, 'operators' => ['>=', '<=']],
-        ],
-        'id'
-    );
-
-    $state = new TableStateDTO(
-        page: 1,
-        size: 10,
-        sort: [['field' => 'score', 'dir' => 'desc']],
-        filters: [['field' => 'score', 'operator' => '>=', 'value' => '40']]
-    );
-
-    $pipeline = new TableQueryPipeline();
-    $result = $pipeline->run($definition, $state);
+    $definition = tmItemsDefinition(fn () => DB::connection('testbench')->table('items'));
+    $result = (new TableQueryPipeline())->run($definition, tmScoreState('desc'));
 
     expect($result['meta']['total'])->toBe(2);
     expect($result['data'][0]->title)->toBe('Beta item');
@@ -47,186 +87,81 @@ it('runs query pipeline successfully on SQLite driver', function () {
 });
 
 it('runs query pipeline successfully on PostgreSQL driver', function () {
+    if (! tmConnectionReachable('pgsql_test')) {
+        $connection = new PostgresConnection(new \Tests\Fakes\FakePdo(), 'tabulator_test', '', ['prefix' => '']);
+        $sql = tmCompileFallbackSql($connection, 'pg_items', 'asc');
+
+        expect($sql)->toMatch('/where "title"(::text)? like \?/');
+        expect($sql)->toContain('"score" >= ?');
+        expect($sql)->toContain('order by "score" asc');
+
+        return;
+    }
+
+    $db = DB::connection('pgsql_test');
+    $db->statement('DROP TABLE IF EXISTS pg_items CASCADE;');
+    $db->statement('CREATE TABLE pg_items (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        score INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );');
+
     try {
-        DB::connection('pgsql_test')->getPdo();
-
-        DB::connection('pgsql_test')->statement("DROP TABLE IF EXISTS pg_items CASCADE;");
-        DB::connection('pgsql_test')->statement("CREATE TABLE pg_items (
-            id SERIAL PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            score INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );");
-
-        DB::connection('pgsql_test')->table('pg_items')->insert([
+        $db->table('pg_items')->insert([
             ['title' => 'PG Alpha', 'score' => 10],
             ['title' => 'PG Beta', 'score' => 95],
             ['title' => 'PG Gamma', 'score' => 80],
         ]);
 
-        $definition = new TableDefinition(
-            fn () => DB::connection('pgsql_test')->table('pg_items'),
-            [
-                'title' => ['column' => 'title', 'sortable' => true, 'operators' => ['contains', '=']],
-                'score' => ['column' => 'score', 'sortable' => true, 'operators' => ['>=', '<=']],
-            ],
-            'id'
-        );
-
-        $state = new TableStateDTO(
-            page: 1,
-            size: 10,
-            sort: [['field' => 'score', 'dir' => 'asc']],
-            filters: [['field' => 'score', 'operator' => '>=', 'value' => '50']]
-        );
-
-        $pipeline = new TableQueryPipeline();
-        $result = $pipeline->run($definition, $state);
+        $result = (new TableQueryPipeline())->run(tmItemsDefinition(fn () => $db->table('pg_items')), tmScoreState('asc'));
 
         expect($result['meta']['total'])->toBe(2);
         expect($result['data'][0]->title)->toBe('PG Gamma');
         expect($result['data'][1]->title)->toBe('PG Beta');
-
-        DB::connection('pgsql_test')->statement("DROP TABLE IF EXISTS pg_items CASCADE;");
-    } catch (\Throwable $e) {
-        // Fall back to Postgres query grammar compilation & dialect verification with FakePdo
-        $connection = new \Illuminate\Database\PostgresConnection(
-            new \Tests\Fakes\FakePdo(),
-            'tabulator_test',
-            '',
-            ['prefix' => '']
-        );
-        $grammar = new \Illuminate\Database\Query\Grammars\PostgresGrammar();
-        $connection->setQueryGrammar($grammar);
-
-        $builder = $connection->table('pg_items');
-        $definition = new TableDefinition(
-            fn () => $builder,
-            [
-                'title' => ['column' => 'title', 'sortable' => true, 'operators' => ['contains', '=']],
-                'score' => ['column' => 'score', 'sortable' => true, 'operators' => ['>=', '<=']],
-            ],
-            'id'
-        );
-
-        $state = new TableStateDTO(
-            page: 1,
-            size: 10,
-            sort: [['field' => 'score', 'dir' => 'asc']],
-            filters: [
-                ['field' => 'title', 'operator' => 'contains', 'value' => 'PG'],
-                ['field' => 'score', 'operator' => '>=', 'value' => '50'],
-            ]
-        );
-
-        foreach ($state->filters as $f) {
-            if ($f['operator'] === 'contains') {
-                $builder->where('title', 'like', '%' . $f['value'] . '%');
-            } else {
-                $builder->where('score', $f['operator'], $f['value']);
-            }
-        }
-        $builder->orderBy('score', 'asc');
-
-        $sql = $builder->toSql();
-        expect($sql)->toMatch('/where "title"(::text)? like \?/');
-        expect($sql)->toContain('"score" >= ?');
-        expect($sql)->toContain('order by "score" asc');
+    } finally {
+        $db->statement('DROP TABLE IF EXISTS pg_items CASCADE;');
     }
 });
 
 it('runs query pipeline successfully on MySQL driver', function () {
-    if (!extension_loaded('pdo_mysql')) {
-        // If host php lacks pdo_mysql, verify MySQL query grammar compilation & dialect compatibility
-        $connection = new \Illuminate\Database\MySqlConnection(
-            new \Tests\Fakes\FakePdo(),
-            'tabulator_test',
-            '',
-            ['prefix' => '']
-        );
-        $grammar = new \Illuminate\Database\Query\Grammars\MySqlGrammar();
-        $connection->setQueryGrammar($grammar);
-
-        $builder = $connection->table('mysql_items');
-        $definition = new TableDefinition(
-            fn () => $builder,
-            [
-                'title' => ['column' => 'title', 'sortable' => true, 'operators' => ['contains', '=']],
-                'score' => ['column' => 'score', 'sortable' => true, 'operators' => ['>=', '<=']],
-            ],
-            'id'
-        );
-
-        $state = new TableStateDTO(
-            page: 1,
-            size: 10,
-            sort: [['field' => 'score', 'dir' => 'desc']],
-            filters: [
-                ['field' => 'title', 'operator' => 'contains', 'value' => 'test'],
-                ['field' => 'score', 'operator' => '>=', 'value' => '50'],
-            ]
-        );
-
-        // Apply filters and sort directly through definition
-        foreach ($state->filters as $f) {
-            if ($f['operator'] === 'contains') {
-                $builder->where('title', 'like', '%' . $f['value'] . '%');
-            } else {
-                $builder->where('score', $f['operator'], $f['value']);
-            }
+    if (! extension_loaded('pdo_mysql') || ! tmConnectionReachable('mysql_test')) {
+        if (getenv('TM_REQUIRE_DB') === '1') {
+            throw new \RuntimeException('TM_REQUIRE_DB=1 but pdo_mysql / MySQL server is unavailable.');
         }
-        $builder->orderBy('score', 'desc');
 
-        $sql = $builder->toSql();
+        $connection = new MySqlConnection(new \Tests\Fakes\FakePdo(), 'tabulator_test', '', ['prefix' => '']);
+        $sql = tmCompileFallbackSql($connection, 'mysql_items', 'desc');
+
         expect($sql)->toContain('where `title` like ?');
         expect($sql)->toContain('`score` >= ?');
         expect($sql)->toContain('order by `score` desc');
+
         return;
     }
 
-    try {
-        DB::connection('mysql_test')->getPdo();
-    } catch (\Throwable $e) {
-        $this->markTestSkipped('MySQL server not available: ' . $e->getMessage());
-    }
-
-    DB::connection('mysql_test')->statement("DROP TABLE IF EXISTS mysql_items;");
-    DB::connection('mysql_test')->statement("CREATE TABLE mysql_items (
+    $db = DB::connection('mysql_test');
+    $db->statement('DROP TABLE IF EXISTS mysql_items;');
+    $db->statement('CREATE TABLE mysql_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         score INT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );");
+    );');
 
-    DB::connection('mysql_test')->table('mysql_items')->insert([
-        ['title' => 'MySQL Alpha', 'score' => 15],
-        ['title' => 'MySQL Beta', 'score' => 75],
-        ['title' => 'MySQL Gamma', 'score' => 99],
-    ]);
+    try {
+        $db->table('mysql_items')->insert([
+            ['title' => 'MySQL Alpha', 'score' => 15],
+            ['title' => 'MySQL Beta', 'score' => 75],
+            ['title' => 'MySQL Gamma', 'score' => 99],
+        ]);
 
-    $definition = new TableDefinition(
-        fn () => DB::connection('mysql_test')->table('mysql_items'),
-        [
-            'title' => ['column' => 'title', 'sortable' => true, 'operators' => ['contains', '=']],
-            'score' => ['column' => 'score', 'sortable' => true, 'operators' => ['>=', '<=']],
-        ],
-        'id'
-    );
+        $result = (new TableQueryPipeline())->run(tmItemsDefinition(fn () => $db->table('mysql_items')), tmScoreState('desc'));
 
-    $state = new TableStateDTO(
-        page: 1,
-        size: 10,
-        sort: [['field' => 'score', 'dir' => 'desc']],
-        filters: [['field' => 'score', 'operator' => '>=', 'value' => '50']]
-    );
-
-    $pipeline = new TableQueryPipeline();
-    $result = $pipeline->run($definition, $state);
-
-    expect($result['meta']['total'])->toBe(2);
-    expect($result['data'][0]->title)->toBe('MySQL Gamma');
-    expect($result['data'][0]->title)->toBe('MySQL Gamma');
-    expect($result['data'][1]->title)->toBe('MySQL Beta');
-
-    DB::connection('mysql_test')->statement("DROP TABLE IF EXISTS mysql_items;");
+        expect($result['meta']['total'])->toBe(2);
+        expect($result['data'][0]->title)->toBe('MySQL Gamma');
+        expect($result['data'][1]->title)->toBe('MySQL Beta');
+    } finally {
+        $db->statement('DROP TABLE IF EXISTS mysql_items;');
+    }
 });

@@ -10,5 +10,17 @@ export default defineConfig({
         url: "http://localhost/",
       },
     },
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      reporter: ["text", "lcov"],
+      // Release gate: `vitest run --coverage` fails below these floors.
+      thresholds: {
+        lines: 90,
+        statements: 90,
+        functions: 90,
+        branches: 85,
+      },
+    },
   },
 });

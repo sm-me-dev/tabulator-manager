@@ -48,3 +48,6 @@ Thumbs.db
 # Agent & Graphify
 .gemini/
 graphify-out/
+
+# Library lockfile (resolved per-matrix in CI; Packagist ignores it)
+packages/laravel/composer.lock

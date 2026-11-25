@@ -1,76 +1,40 @@
 name: Release
 
+# Creates the GitHub Release for a version tag. npm publishing (publish-core.yml) and the
+# Packagist/Composer flow (publish-laravel.yml) are triggered by the same tag push; releases
+# created with GITHUB_TOKEN cannot trigger other workflows, so they must not depend on this one.
+
 on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  verify:
-    name: Verify Quality Gates
+  create-release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     steps:
-      - name: Validate Release Tag
+      - name: Validate tag format
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
-          fi
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] \
+            || { echo "Invalid release tag: $TAG"; exit 1; }
 
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: |
-          pnpm approve-builds --all || true
-          pnpm install
-
-      - name: Run Core Verification
-        run: |
-          pnpm --filter @tabulator-manager/core typecheck
-          pnpm --filter @tabulator-manager/core test:coverage
-          pnpm --filter @tabulator-manager/core build
-
-      - name: Set up PHP 8.4
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.4
-          extensions: mbstring, pdo, pdo_sqlite, sqlite3
-
-      - name: Run Laravel Verification
-        run: |
-          cd packages/laravel
-          composer validate --strict
-          composer install --prefer-dist --no-interaction
-          ./vendor/bin/pest
-
-  create-release:
-    name: Create GitHub Release
-    needs: verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create GitHub Release
+      - name: Create GitHub Release (idempotent)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          gh release create "${TAG}" \
-            --title "Tabulator Manager ${TAG}" \
-            --generate-notes
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+          else
+            PRERELEASE=""
+            [[ "$TAG" == *-* ]] && PRERELEASE="--prerelease"
+            gh release create "$TAG" --title "Tabulator Manager $TAG" --generate-notes $PRERELEASE
+          fi

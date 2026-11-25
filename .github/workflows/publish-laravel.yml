@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   test-suite:
-    name: PHP ${{ matrix.php }} | Multi-DB Matrix
+    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
     runs-on: ubuntu-latest
 
     services:
@@ -33,7 +33,7 @@ jobs:
           --health-cmd pg_isready
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
       mysql:
         image: mysql:8.0
@@ -43,15 +43,21 @@ jobs:
         ports:
           - 33306:3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     strategy:
       fail-fast: false
       matrix:
         php: ["8.2", "8.3", "8.4"]
+        laravel: ["^11.0", "^12.0"]
+        include:
+          - laravel: "^11.0"
+            testbench: "^9.0"
+          - laravel: "^12.0"
+            testbench: "^10.0"
 
     steps:
       - name: Checkout repository
@@ -63,36 +69,76 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mbstring, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, sqlite3
           coverage: none
+          tools: composer:v2
 
-      - name: Validate Composer configuration
+      - name: Validate composer.json
+        working-directory: packages/laravel
+        run: composer validate --strict
+
+      # The package is a library: composer.lock is not committed (a lock resolved on PHP 8.4
+      # pulls Symfony 8 and cannot install on 8.2/8.3). Resolve per matrix cell instead.
+      - name: Pin Laravel ${{ matrix.laravel }} / Testbench ${{ matrix.testbench }}
+        working-directory: packages/laravel
         run: |
-          cd packages/laravel
-          composer validate --strict
+          composer require --no-update --no-interaction \
+            "illuminate/support:${{ matrix.laravel }}" "illuminate/database:${{ matrix.laravel }}"
+          composer require --dev --no-update --no-interaction \
+            "orchestra/testbench:${{ matrix.testbench }}"
 
       - name: Install dependencies
-        run: |
-          cd packages/laravel
-          composer install --prefer-dist --no-interaction --no-progress
+        working-directory: packages/laravel
+        run: composer update --prefer-dist --prefer-stable --no-interaction --no-progress
 
-      - name: Run Pest test suite (SQLite, PostgreSQL, MySQL)
+      - name: Verify package auto-discovery
+        working-directory: packages/laravel
         run: |
-          cd packages/laravel
-          ./vendor/bin/pest --colors=always
+          composer validate --strict
+          php -r '$c=json_decode(file_get_contents("composer.json"),true); $p=$c["extra"]["laravel"]["providers"]??[]; if(!in_array("TabulatorManager\\Laravel\\TabulatorManagerServiceProvider",$p,true)){fwrite(STDERR,"Missing extra.laravel.providers entry\n");exit(1);} echo "auto-discovery provider OK\n";'
 
-  packagist-notification:
-    name: Packagist Release Verification
+      - name: Run Pest (SQLite + PostgreSQL + MySQL, shared contract fixture)
+        working-directory: packages/laravel
+        env:
+          TM_REQUIRE_DB: "1" # fail instead of silently falling back to grammar-only checks
+        run: ./vendor/bin/pest --colors=always
+
+  split-package:
+    name: Split packages/laravel to read-only Composer repo
     needs: test-suite
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/laravel-v')
+    # Packagist needs composer.json at the repository root. Enable by setting repo variable
+    # LARAVEL_SPLIT_REPO (e.g. "sm-me-dev/tabulator-manager-laravel") and secret SPLIT_TOKEN.
+    if: ${{ startsWith(github.ref, 'refs/tags/') && vars.LARAVEL_SPLIT_REPO != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Trigger Packagist Webhook Update (Optional)
-        if: env.PACKAGIST_TOKEN != ''
-        run: |
-          curl -XPOST -H'content-type:application/json' \
-            "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
-            -d'{"repository":{"url":"https://github.com/tabulator-manager/tabulator-manager"}}'
+      - name: Split and push tag
         env:
-          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+          SPLIT_TOKEN: ${{ secrets.SPLIT_TOKEN }}
+          SPLIT_REPO: ${{ vars.LARAVEL_SPLIT_REPO }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#laravel-}"
+          SHA=$(git subtree split --prefix=packages/laravel HEAD)
+          REMOTE="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
+          git push "$REMOTE" "${SHA}:refs/heads/main" --force
+          git push "$REMOTE" "${SHA}:refs/tags/${TAG}" --force
+
+  packagist-update:
+    name: Notify Packagist
+    needs: test-suite
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    env:
+      PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+      PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+      PACKAGIST_REPO_URL: https://github.com/${{ vars.LARAVEL_SPLIT_REPO || github.repository }}
+    steps:
+      - name: Trigger Packagist update (skipped when credentials are not configured)
+        if: ${{ env.PACKAGIST_TOKEN != '' }}
+        run: |
+          curl --fail-with-body -sS -X POST -H 'content-type: application/json' \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
+            -d "{\"repository\":{\"url\":\"${PACKAGIST_REPO_URL}\"}}"

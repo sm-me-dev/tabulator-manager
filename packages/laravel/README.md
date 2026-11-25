@@ -43,4 +43,4 @@ return (new JsonPresenter())->present($result);
 ```
 
 ## Documentation
-See the [Monorepo Documentation](https://github.com/tabulator-manager/tabulator-manager#readme) for the full API reference and guides.
+See the [Monorepo Documentation](https://github.com/sm-me-dev/tabulator-manager#readme) for the full API reference and guides.

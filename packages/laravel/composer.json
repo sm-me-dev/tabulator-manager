@@ -15,10 +15,10 @@
     "jalali",
     "url-state"
   ],
-  "homepage": "https://github.com/tabulator-manager/tabulator-manager/tree/main/packages/laravel",
+  "homepage": "https://github.com/sm-me-dev/tabulator-manager/tree/main/packages/laravel",
   "support": {
-    "issues": "https://github.com/tabulator-manager/tabulator-manager/issues",
-    "source": "https://github.com/tabulator-manager/tabulator-manager"
+    "issues": "https://github.com/sm-me-dev/tabulator-manager/issues",
+    "source": "https://github.com/sm-me-dev/tabulator-manager"
   },
   "authors": [
     {

@@ -7,12 +7,12 @@
   "author": "Tabulator Manager Contributors",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tabulator-manager/tabulator-manager.git",
+    "url": "git+https://github.com/sm-me-dev/tabulator-manager.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/tabulator-manager/tabulator-manager/tree/main/packages/core#readme",
+  "homepage": "https://github.com/sm-me-dev/tabulator-manager/tree/main/packages/core#readme",
   "bugs": {
-    "url": "https://github.com/tabulator-manager/tabulator-manager/issues"
+    "url": "https://github.com/sm-me-dev/tabulator-manager/issues"
   },
   "keywords": [
     "tabulator",
@@ -58,5 +58,8 @@
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

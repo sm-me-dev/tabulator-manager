@@ -55,9 +55,13 @@ export class TransportCoordinator {
 
   getEndpointUrl(path: string): string {
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    return this.state.dataSource === "live"
-      ? `${this.state.renderUrl}${cleanPath}`
-      : cleanPath;
+    if (this.state.dataSource === "live") {
+      return `${this.state.renderUrl}${cleanPath}`;
+    }
+    // Mock mode must stay inside the MSW service-worker scope, which is the
+    // Vite base (e.g. "/tabulator-manager/" on GitHub Pages), not the origin root.
+    const base = (import.meta.env?.BASE_URL ?? "/").replace(/\/+$/, "");
+    return `${base}${cleanPath}`;
   }
 
   async start(): Promise<void> {

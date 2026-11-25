@@ -152,6 +152,19 @@ describe("multi-table isolation", () => {
     expect(getUrlSearch()).toContain("section=reports");
     expect(window.location.hash).toBe("#section-top");
   });
+
+  it("does not throw on unrelated keys containing a literal percent sign", () => {
+    // `?50%25=x` decodes to the key "50%", which is not valid for decodeURIComponent.
+    setUrl("50%25=discount&keep=1#top");
+    expect(() =>
+      writeTableState("users", { ...DEFAULT_TABLE_STATE, page: 2 })
+    ).not.toThrow();
+    const params = new URL(window.location.href).searchParams;
+    expect(params.get("50%")).toBe("discount");
+    expect(params.get("keep")).toBe("1");
+    expect(window.location.hash).toBe("#top");
+    expect(readTableState("users").page).toBe(2);
+  });
 });
 
 describe("UrlStateAdapter & UrlStateCoordinator", () => {

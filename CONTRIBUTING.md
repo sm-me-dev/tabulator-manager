@@ -17,7 +17,7 @@ Thank you for your interest in contributing to Tabulator Manager! We welcome con
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/tabulator-manager/tabulator-manager.git
+git clone https://github.com/sm-me-dev/tabulator-manager.git
 cd tabulator-manager
 
 # Install JavaScript/TypeScript dependencies

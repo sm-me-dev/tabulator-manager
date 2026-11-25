@@ -1,0 +1,17 @@
+.git
+.github
+.gemini
+graphify-out
+**/node_modules
+**/vendor
+**/dist
+**/coverage
+e2e
+docs
+apps/demo
+packages/core
+playwright-report
+test-results
+**/.env
+**/.env.*
+apps/laravel-demo/database/*.sqlite

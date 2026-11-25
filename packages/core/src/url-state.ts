@@ -101,7 +101,9 @@ export function writeTableState(
   // Find all keys starting with table prefix across URLSearchParams (handles both encoded and decoded)
   const keysToDelete = new Set<string>();
   url.searchParams.forEach((_, k) => {
-    if (k.startsWith(prefix) || decodeURIComponent(k).startsWith(prefix)) {
+    // URLSearchParams already yields decoded keys; calling decodeURIComponent()
+    // again would throw URIError for any unrelated key containing a literal "%".
+    if (k.startsWith(prefix)) {
       keysToDelete.add(k);
     }
   });

@@ -42,4 +42,4 @@ const table = mountTable({
 ```
 
 ## Documentation
-See the [Monorepo Documentation](https://github.com/tabulator-manager/tabulator-manager#readme) for the full API reference and examples.
+See the [Monorepo Documentation](https://github.com/sm-me-dev/tabulator-manager#readme) for the full API reference and examples.

@@ -18,7 +18,7 @@ In accordance with 2026 security best practices, `@tabulator-manager/core` uses 
 1. Navigate to your package settings on [npmjs.com](https://www.npmjs.com/).
 2. Select **Publishing Access** &gt; **Trusted Publishers**.
 3. Add a new **GitHub Actions** publisher:
-   - **Repository Owner**: `tabulator-manager`
+   - **Repository Owner**: `sm-me-dev`
    - **Repository Name**: `tabulator-manager`
    - **Workflow filename**: `publish-core.yml`
    - **Environment name**: (Leave empty or set to `production`)
@@ -31,7 +31,7 @@ In accordance with 2026 security best practices, `@tabulator-manager/core` uses 
 ### Registering on Packagist
 1. Log in to [Packagist.org](https://packagist.org/).
 2. Click **Submit** and enter the repository URL:
-   `https://github.com/tabulator-manager/tabulator-manager`
+   `https://github.com/sm-me-dev/tabulator-manager`
 3. Packagist will read `packages/laravel/composer.json` and register `tabulator-manager/laravel`.
 
 ### Automated Webhook Integration

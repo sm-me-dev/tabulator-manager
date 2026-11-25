@@ -1,5 +1,8 @@
 name: GitHub Pages
 
+# Deploys apps/demo to GitHub Pages using the official Pages actions.
+# One-time repo setting: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+
 on:
   push:
     branches:
@@ -9,76 +12,71 @@ on:
       - "packages/core/**"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
+    name: Build demo
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12
+        uses: pnpm/action-setup@v4 # version comes from package.json "packageManager"
 
-      - name: Setup Node.js
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "pnpm"
+          cache: pnpm
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
       - name: Install dependencies
-        run: |
-          pnpm approve-builds --all || true
-          pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build Core & Demo Preview
+      - name: Build core and demo
+        # GITHUB_REPOSITORY is set by Actions, so vite.config.ts derives base = "/<repo>/".
         run: |
           pnpm --filter @tabulator-manager/core build
           pnpm --filter demo build
 
-      - name: Deploy to gh-pages branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Pages artifact (base path + MSW service worker)
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          test -f apps/demo/dist/index.html
+          test -f apps/demo/dist/mockServiceWorker.js
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          grep -q "/${REPO_NAME}/assets/" apps/demo/dist/index.html \
+            || { echo "index.html asset URLs are not prefixed with /${REPO_NAME}/"; exit 1; }
+          touch apps/demo/dist/.nojekyll
 
-          TMP_DIR=$(mktemp -d)
-          cp -r apps/demo/dist/* "$TMP_DIR/"
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./apps/demo/dist
 
-          # Checkout or create orphan gh-pages branch
-          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-            git fetch origin gh-pages:gh-pages
-            git checkout gh-pages
-          else
-            git checkout --orphan gh-pages
-          fi
-
-          # Clear existing tracked files in gh-pages
-          git rm -rf . >/dev/null 2>&1 || true
-
-          # Copy generated demo dist files & disable jekyll processing
-          cp -r "$TMP_DIR"/* .
-          touch .nojekyll
-
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No changes to deploy to gh-pages."
-          else
-            git commit -m "Deploy GitHub Pages for Tabulator Manager [skip ci]"
-            git push origin gh-pages
-          fi
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

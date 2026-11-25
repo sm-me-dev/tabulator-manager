@@ -3,8 +3,8 @@
 [![npm version](https://img.shields.io/npm/v/@tabulator-manager/core.svg?style=flat-square&color=indigo)](https://www.npmjs.com/package/@tabulator-manager/core)
 [![Packagist Version](https://img.shields.io/packagist/v/tabulator-manager/laravel.svg?style=flat-square&color=red)](https://packagist.org/packages/tabulator-manager/laravel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![CI Status](https://img.shields.io/badge/CI-Passing-emerald.svg?style=flat-square)](https://github.com/tabulator-manager/tabulator-manager/actions)
-[![Coverage](https://img.shields.io/badge/Coverage-98.8%25-brightgreen.svg?style=flat-square)](https://github.com/tabulator-manager/tabulator-manager)
+[![CI Status](https://img.shields.io/badge/CI-Passing-emerald.svg?style=flat-square)](https://github.com/sm-me-dev/tabulator-manager/actions)
+[![Coverage](https://img.shields.io/badge/Coverage-98.8%25-brightgreen.svg?style=flat-square)](https://github.com/sm-me-dev/tabulator-manager)
 [![Live Demo](https://img.shields.io/badge/Demo-Live_on_GitHub_Pages-6366f1.svg?style=flat-square)](https://sm-me-dev.github.io/tabulator-manager/)
 
 A modern, production-grade monorepo delivering decoupled, transport-agnostic table state coordination for **Tabulator** and seamless, database-agnostic query processing in **Laravel 11 & 12**.
